@@ -174,7 +174,7 @@ def build_demo(
         ref_text=None,
     ):
         if not text or not text.strip():
-            return None, "Please enter the text to synthesize."
+            return None, "请输入要合成的文本。"
 
         gen_config = OmniVoiceGenerationConfig(
             num_step=int(num_step or 32),
@@ -197,7 +197,7 @@ def build_demo(
 
         if mode == "clone":
             if not ref_audio:
-                return None, "Please upload a reference audio."
+                return None, "请上传参考音频。"
             kw["voice_clone_prompt"] = model.create_voice_clone_prompt(
                 ref_audio=ref_audio,
                 ref_text=ref_text,
@@ -209,10 +209,10 @@ def build_demo(
         try:
             audio = model.generate(**kw)
         except Exception as e:
-            return None, f"Error: {type(e).__name__}: {e}"
+            return None, f"错误：{type(e).__name__}: {e}"
 
         waveform = (audio[0] * 32767).astype(np.int16)
-        return (sampling_rate, waveform), "Done."
+        return (sampling_rate, waveform), "生成完成。"
 
     # Allow external wrappers (e.g. spaces.GPU for ZeroGPU Spaces)
     _gen = generate_fn if generate_fn is not None else _gen_core
@@ -232,30 +232,30 @@ def build_demo(
     """
 
     # Reusable: language dropdown component
-    def _lang_dropdown(label="Language (optional) / 语种 (可选)", value="Auto"):
+    def _lang_dropdown(label="语言（可选）", value="Auto"):
         return gr.Dropdown(
             label=label,
             choices=_ALL_LANGUAGES,
             value=value,
             allow_custom_value=False,
             interactive=True,
-            info="Keep as Auto to auto-detect the language.",
+            info="保持“自动”以自动检测语言。",
         )
 
     # Reusable: optional generation settings accordion
     def _gen_settings():
-        with gr.Accordion("Generation Settings (optional)", open=False):
+        with gr.Accordion("生成设置（可选）", open=False):
             sp = gr.Slider(
                 0.5,
                 1.5,
                 value=1.0,
                 step=0.05,
-                label="Speed",
-                info="1.0 = normal. >1 faster, <1 slower. Ignored if Duration is set.",
+                label="语速",
+                info="1.0 为正常速度，大于 1 加快，小于 1 减慢。设置时长后此项将被忽略。",
             )
             du = gr.Number(
                 value=None,
-                label="Duration (seconds)",
+                label="时长（秒）",
                 info=(
                     "Leave empty to use speed."
                     " Set a fixed duration to override speed."
@@ -266,68 +266,66 @@ def build_demo(
                 64,
                 value=32,
                 step=1,
-                label="Inference Steps",
-                info="Default: 32. Lower = faster, higher = better quality.",
+                label="推理步数",
+                info="默认值：32。数值越小速度越快，数值越大质量越好。",
             )
             dn = gr.Checkbox(
-                label="Denoise",
+                label="降噪",
                 value=True,
-                info="Default: enabled. Uncheck to disable denoising.",
+                info="默认启用；取消勾选以关闭降噪。",
             )
             gs = gr.Slider(
                 0.0,
                 4.0,
                 value=2.0,
                 step=0.1,
-                label="Guidance Scale (CFG)",
-                info="Default: 2.0.",
+                label="引导强度（CFG）",
+                info="默认值：2.0。",
             )
             pp = gr.Checkbox(
-                label="Preprocess Prompt",
+                label="预处理提示音频",
                 value=True,
-                info="apply silence removal and trimming to the reference "
-                "audio, add punctuation in the end of reference text (if not already)",
+                info="对参考音频去除静音并裁剪；在参考文本末尾补充标点（如尚未添加）。",
             )
             po = gr.Checkbox(
-                label="Postprocess Output",
+                label="后处理输出",
                 value=True,
-                info="Remove long silences from generated audio.",
+                info="移除生成音频中的长静音。",
             )
         return ns, gs, dn, sp, du, pp, po
 
-    with gr.Blocks(theme=theme, css=css, title="OmniVoice Demo") as demo:
+    with gr.Blocks(theme=theme, css=css, title="OmniVoice 中文演示") as demo:
 
         with gr.Tabs():
             # ==============================================================
             # Voice Clone
             # ==============================================================
-            with gr.TabItem("Voice Clone"):
+            with gr.TabItem("声音克隆"):
                 with gr.Row():
                     with gr.Column(scale=1):
                         vc_text = gr.Textbox(
-                            label="Text to Synthesize / 待合成文本",
+                            label="待合成文本",
                             lines=4,
-                            placeholder="Enter the text you want to synthesize...",
+                            placeholder="请输入要合成的文本……",
                         )
                         vc_ref_audio = gr.Audio(
-                            label="Reference Audio / 参考音频",
+                            label="参考音频",
                             type="filepath",
                             elem_classes="compact-audio",
                         )
                         gr.Markdown(
                             "<span style='font-size:0.85em;color:#888;'>"
-                            "Recommended: 3–10 seconds audio. "
+                            "建议使用 3–10 秒的音频。"
                             "</span>"
                         )
                         vc_ref_text = gr.Textbox(
-                            label=("Reference Text (optional)" " / 参考音频文本（可选）"),
+                            label="参考音频文本（可选）",
                             lines=2,
-                            placeholder="Transcript of the reference audio. Leave empty"
-                            " to auto-transcribe via ASR models.",
+                            placeholder="请输入参考音频文本；留空则使用语音识别自动转写。",
                         )
-                        vc_lang = _lang_dropdown("Language (optional) / 语种 (可选)")
-                        with gr.Accordion("Instruct (optional)", open=False):
-                            vc_instruct = gr.Textbox(label="Instruct", lines=2)
+                        vc_lang = _lang_dropdown()
+                        with gr.Accordion("风格指令（可选）", open=False):
+                            vc_instruct = gr.Textbox(label="风格指令", lines=2)
                         (
                             vc_ns,
                             vc_gs,
@@ -337,13 +335,13 @@ def build_demo(
                             vc_pp,
                             vc_po,
                         ) = _gen_settings()
-                        vc_btn = gr.Button("Generate / 生成", variant="primary")
                     with gr.Column(scale=1):
                         vc_audio = gr.Audio(
-                            label="Output Audio / 合成结果",
+                            label="合成结果",
                             type="numpy",
                         )
-                        vc_status = gr.Textbox(label="Status / 状态", lines=2)
+                        vc_status = gr.Textbox(label="状态", lines=2)
+                        vc_btn = gr.Button("生成", variant="primary")
 
                 def _clone_fn(
                     text, lang, ref_aud, ref_text, instruct, ns, gs, dn, sp, du, pp, po
@@ -386,13 +384,13 @@ def build_demo(
             # ==============================================================
             # Voice Design
             # ==============================================================
-            with gr.TabItem("Voice Design"):
+            with gr.TabItem("声音设计"):
                 with gr.Row():
                     with gr.Column(scale=1):
                         vd_text = gr.Textbox(
-                            label="Text to Synthesize / 待合成文本",
+                            label="待合成文本",
                             lines=4,
-                            placeholder="Enter the text you want to synthesize...",
+                            placeholder="请输入要合成的文本……",
                         )
                         vd_lang = _lang_dropdown()
 
@@ -417,13 +415,13 @@ def build_demo(
                             vd_pp,
                             vd_po,
                         ) = _gen_settings()
-                        vd_btn = gr.Button("Generate / 生成", variant="primary")
                     with gr.Column(scale=1):
                         vd_audio = gr.Audio(
-                            label="Output Audio / 合成结果",
+                            label="合成结果",
                             type="numpy",
                         )
-                        vd_status = gr.Textbox(label="Status / 状态", lines=2)
+                        vd_status = gr.Textbox(label="状态", lines=2)
+                        vd_btn = gr.Button("生成", variant="primary")
 
                 def _build_instruct(groups):
                     """Extract instruct text from UI dropdowns.
