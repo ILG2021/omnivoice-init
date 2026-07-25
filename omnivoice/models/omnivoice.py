@@ -1544,22 +1544,8 @@ def _filter_top_k(logits: torch.Tensor, ratio: float = 0.1) -> torch.Tensor:
 
 
 def _gumbel_sample(logits: torch.Tensor, temperature: float) -> torch.Tensor:
-    """Gumbel-max trick using a thread-local isolated Generator.
-
-    Each calling thread has its own ``torch.Generator`` (via
-    ``_get_gumbel_generator()``), so:
-    - External operations (ASR, tokenizer encode, …) cannot corrupt the
-      random state seen here.
-    - Concurrent multi-user requests are fully independent.
-    """
     scaled_logits = logits / temperature
-    # CPU generator cannot write directly to a CUDA tensor, so generate on
-    # CPU first and move to the target device.
-    u = torch.rand(
-        scaled_logits.shape,
-        generator=_get_gumbel_generator(),
-        dtype=scaled_logits.dtype,
-    ).to(logits.device)
+    u = torch.rand_like(scaled_logits)
     gumbel_noise = -torch.log(-torch.log(u + 1e-10) + 1e-10)
     return scaled_logits + gumbel_noise
 
